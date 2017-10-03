@@ -1,13 +1,54 @@
 <template >
   <div class="">
-    
+    <scroller
+      class="scroller"
+      ref="myscroller"
+      :on-refresh="refresh"
+      :on-infinite="infinite"
+      >
+      <div class="main">
+          <swiper
+          class="swiper"
+          :list="swiperList"
+          :auto="true"
+          :loop="true"
+          @touchstart.native.stop=""
+          @touchmove.native.stop=""
+          @touchend.native.stop=""
+          @mousedown.native.stop=""
+          @mousemove.native.stop=""
+          @mouseup.native.stop=""
+          >
+        </swiper>
+
+        <div class="news">
+          <panel
+          class="panel"
+          @on-click-item="stop"
+          :list="newsList"
+          ></panel>
+        </div>
+
+        <div class="" v-for="item,index in allOldList">
+          <h2 class="date">{{oldDate[index]}}</h2>
+          <panel
+          class="panel"
+          @on-click-item="stop"
+          :list="item">
+          </panel>
+        </div>
+      </div>
+    </scroller>
+
   </div>
 </template>
 
 <script>
-  import { getAxios } from '@/api/index'
   import { Swiper, Panel } from 'vux';
   import {mapMutations } from 'vuex'
+  import { getAxios } from '@/api/index'
+  import axios from 'axios'
+
   // 处理日期的函数
   var nowDate = new Date();
   var y,m,d= '';
@@ -41,7 +82,103 @@
       Swiper,
       Panel
     },
+    data() {
+      return {
+        data: '/news/latest',
+        swiperList: [],
+        newsList: [],
+        oldList: null,
+        oldDate: [],
+        allOldList: [],
+        id: ''
+      }
+    },
+    created() {
+      this._getAxios();
+    },
+    methods: {
+      _getAxios() {
+        axios('https://zhihu-daily.leanapp.cn/api/v1/last-stories').then( res => {
+          console.log(res.data);
+          this.swiperList = res.data.STORIES.top_stories.map( item => {
+            return {
+              url: `/more/${item.id}`,
+              img: item.image,
+              title: item.title
+            }
+          })
+          // 新闻的数据
+          this.newsList =  res.data.STORIES.stories.map(item => {
+            return {
+              url: `/more/${item.id}`,
+              src: item.images[0],
+              title: item.title
+            }
+          })
+          initLoaded = true;
+        })
+      },
+      refresh() {
+        let pro = new Promise((resolve, reject) => {
+          if(isTrue){
+            this._getAxios()
+            console.log(1);
+            resolve()
+          } else {
+            console.log(2);
+            reject()
+          }
+        });
+        pro.then(()=> {
+          console.log(222);
+            console.log(this.$refs.myscroller);
+            setTimeout(() => {
+              this.$refs.myscroller.finishPullToRefresh();
+              this.$vux.toast.text('刷新成功', 'top');
+              // this.allOldList = [];
+            },1000)
+        })
+      },
+      infinite() {
 
+        if(!initLoaded) {
+          this.$refs.myscroller.finishInfinite();
+          return
+        }
+        if (!moreLoaded) {
+            return;
+        }
+
+        moreLoaded = false;
+        num++;
+        console.log(num);
+        axios(`https://zhihu-daily.leanapp.cn/api/v1/before-stories/${getDate(nowDate)[0]}`)
+        .then( res => {
+          // console.log(res.data);
+          // 新闻的数据
+          this.oldDate.push(getDate(nowDate)[1]);
+          this.oldList =  res.data.STORIES.stories.map(item => {
+            return {
+              id: item.id,
+              url: `/more/${item.id}`,
+              src: item.images[0],
+              title: item.title
+            }
+          })
+          console.log(this.oldList);
+
+          this.allOldList.push(this.oldList);
+          console.log(this.allOldList);
+          this.$refs.myscroller.finishInfinite();
+          moreLoaded = true;
+        })
+        nowDate -= dis;
+      },
+      stop() {
+        console.log('停');
+        this.$refs.myscroller.finishInfinite();
+      }
+    }
   }
 
 </script>
@@ -50,7 +187,9 @@
 
   #app {
     .scroller {
-      margin-top: 0.94rem;
+      margin-top: .8rem;
+      // margin-top: 0;
+      // margin-bottom: -.8rem;
       width: 100%;
       .pull-to-refresh-layer {
         height: 0;
@@ -68,8 +207,11 @@
             overflow: visible;
             white-space: normal;
           }
-          .vux-indicator, .vux-slider .vux-indicator-right {
-            line-height: .8rem;
+          .vux-indicator,
+          .vux-indicator-right {
+            right: 50%;
+            transform: translateX(50%);
+            line-height: .6rem;
           }
         }
         .weui-panel {
